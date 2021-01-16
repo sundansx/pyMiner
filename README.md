@@ -1,11 +1,11 @@
-# pimax_bs_manager - Pimax HTC Base Station manager for Windows
+# pyMiner - python miner manager for Windows
 
 threading/systray code from:
 https://github.com/mann1x/pimax_bs_manager
 Thanks a lot to mannix for posting is work and all the previous contributors!
 
 Usage:
-- Just run the executable or the Python script (tested on 3.7.4) 
+- Just run the executable or the Python script (tested on 3.7.3) 
 - Status console via system tray menu, log output and status display with autoscroll
 - Status is available on the hover text on the system tray icon (just move the mouse over it and you'll get HS and BS status)
 - The status panel windows includes th following buttons:
