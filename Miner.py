@@ -191,13 +191,13 @@ class MainObj:
         """
         Start Ethminer
         """
-        self.setMinerState("On")
+        self.setMinerState("Gaming")
 
     def setMinerOff(self):
         """
         Stop EthMiner
         """
-        self.setMinerState("Off")
+        self.setMinerState("Idle")
  
     def setmode(self):
         """
@@ -249,7 +249,7 @@ class GPU(threading.Thread):
 
         if autostart:
             self.start()  # automatically start thread on init
-        self.setstatus("Off")
+        self.setstatus("Idle")
 
     def run(self):
         """
@@ -286,9 +286,9 @@ class GPU(threading.Thread):
                     logging.debug(f"Game Active?: {self.cg.isGaming}")
                 self.gameActive = self.cg.isGaming
                 if (self.gameActive == False):
-                    self.setstatus("Off")
+                    self.setstatus("Idle")
                 else:
-                    self.setstatus("On")
+                    self.setstatus("Gaming")
                 end = time.time()
                 #logging.info(f"GPU thread loop time: {end - start}")
 
@@ -325,17 +325,17 @@ class GPU(threading.Thread):
         :param _status:
         """
         logging.debug(f"setstatus: {_status}")
-        if _status == "On":
+        if _status == "Gaming":
             self.gameActive = True
-        elif _status == "Off":
+        elif _status == "Idle":
             self.gameActive = False
         elif _status == "DEBUG":
             self.gameActive = True
         if self.status != _status:
-            if _status == "On":
+            if _status == "Gaming":
                 logging.info(self.label + " is gaming")
                 self.maininst.setMinerOff()
-            elif _status == "Off":
+            elif _status == "Idle":
                 logging.info(self.label + " is idle")
                 if self.status != self.status_initial:
                     self.maininst.setMinerOn()
