@@ -56,7 +56,7 @@ class MainObj:
         Init function will initialize the instance with default runtime values
         :rtype: object
         """
-        self.version = "1.0.0"
+        self.version = "1.1.0"
         #self.pimax_usb_vendor_id = 0
 
         self.threeDThresh = 'None'
@@ -70,7 +70,7 @@ class MainObj:
 
         self.sleep_time_sec = 5
         self.debug_logs = False
-        self.debug_bypass_usb = False
+#        self.debug_bypass_usb = False
 
         self.tray_icon = "Miner_on.ico"
         self.logformat = "%(asctime)s %(levelname)s (%(module)s): %(message)s"
@@ -272,16 +272,28 @@ class GPU(threading.Thread):
                     # logging.debug(self.label + " detection paused, discovery running")
                     # self.islocked = True
                     # continue
-                if self.maininst.debug_bypass_usb:
-                    self.setstatus("DEBUG")
-                    self.islocked = False
-                    continue
+                # if self.maininst.debug_bypass_usb:
+                    # self.setstatus("DEBUG")
+                    # self.islocked = False
+                    # continue
                 self.islocked = False
                 start = time.time()
                 if (self.cg.isGaming == False):
-                    self.cg.mIsGaming()
+                    returnVal = self.cg.mIsGaming()
+                    if (returnVal == True):
+                        logging.debug(self.cg.debugMsg)
+                    elif (returnVal):
+                        raise Exception(self.cg.debugMsg)
+                    else:
+                        raise Exception(f"Unknown return val: {returnVal}")
                 else:
-                    self.cg.mNotGaming()
+                    returnVal = self.cg.mNotGaming()
+                    if (returnVal == True):
+                        logging.debug(self.cg.debugMsg)
+                    elif (returnVal):
+                        raise Exception(self.cg.debugMsg)
+                    else:
+                        raise Exception(f"Unknown return val: {returnVal}")
                 if maininst.debug_logs:
                     logging.debug(f"Game Active?: {self.cg.isGaming}")
                 self.gameActive = self.cg.isGaming
@@ -290,7 +302,7 @@ class GPU(threading.Thread):
                 else:
                     self.setstatus("On")
                 end = time.time()
-                #logging.info(f"GPU thread loop time: {end - start}")
+                logging.debug(f"GPU thread loop time: {end - start}")
 
 
         except Exception as err:
@@ -585,12 +597,13 @@ class LogWnd(wx.Frame):
             wx.MessageBox("Unable to open the clipboard", "Error")
 
     def ondebugbutton(self, e):
-        if maininst.debug_bypass_usb:
-            maininst.debug_bypass_usb = False
-            self.debugbtn.SetLabel("Miner Debug")
-        else:
-            maininst.debug_bypass_usb = True
-            self.debugbtn.SetLabel("Miner Auto")
+        pass
+#        if maininst.debug_bypass_usb:
+#            maininst.debug_bypass_usb = False
+#            self.debugbtn.SetLabel("Miner Debug")
+#        else:
+#            maininst.debug_bypass_usb = True
+#            self.debugbtn.SetLabel("Miner Auto")
 
     def onwakeupbutton(self, e):
         maininst.setMinerOn()
@@ -901,13 +914,13 @@ def main(_logger):
     """
     try:
         parser = argparse.ArgumentParser()
-        parser.add_argument("--debug_ignore_usb", help="Disable the USB search for Miner", action="store_true")
+#        parser.add_argument("--debug_ignore_usb", help="Disable the USB search for Miner", action="store_true")
         parser.add_argument("--debug_logs", help="Enable DEBUG level logs", action="store_true")
         parser.add_argument("--version", help="Print version", action="store_true")
 
         args = parser.parse_args()
 
-        maininst.debug_bypass_usb = args.debug_ignore_usb
+#        maininst.debug_bypass_usb = args.debug_ignore_usb
         maininst.debug_logs = args.debug_logs
 
         if args.version:

@@ -2,7 +2,5 @@
 !/build/
 !/dist/
 !/build.bat
-!/pimax_bs_manager.spec
-!/BleakUWPBridge.dll
+!/miner.spec
 !/dist/
-!/pimax_bs_manager.spec

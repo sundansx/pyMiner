@@ -32,10 +32,10 @@ VSVersionInfo(
         [StringStruct(u'Comments', u'GPL 3.0 License                             '),
         StringStruct(u'CompanyName', u'https://github.com/                 '),
         StringStruct(u'FileDescription', u'Miner                     '),
-        StringStruct(u'FileVersion', u'1.0.0               '),
+        StringStruct(u'FileVersion', u'1.1.0               '),
         StringStruct(u'LegalCopyright', u'                                                                                                    '),
         StringStruct(u'ProductName', u'Miner                                            '),
-        StringStruct(u'ProductVersion', u'1.0.0                                             ')])
+        StringStruct(u'ProductVersion', u'1.1.0                                             ')])
       ]), 
     VarFileInfo([VarStruct(u'Translation', [0, 1200])])
   ]
