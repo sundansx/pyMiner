@@ -7,15 +7,16 @@ import threading
 import win32com.client
 
 class gameCheck:
-    def __init__(self, threshold, useCOM = True):
+    def __init__(self, threshold, times = 3, useCOM = True):
 
         self.w = wmi.WMI(find_classes=False)
         self.isGaming = False
         self.activeTasks = {}
         self.loop = 0
         self.seqCount = 0
-        self.percThreshoold = threshold
-        self.times = 3 #number of times - 1
+        self.percThreshold = threshold
+        self.times = times #number of times - 1
+        #self.delaySec = delaySec
         self.useCOM = useCOM
         self.debugMsg = ""
         strComputer = "."
@@ -28,7 +29,7 @@ class gameCheck:
         pName = ""
         usage = ""
         self.debugMsg = ""
-        loop = 0
+        #self.loop = 0
         gpu = None
         try:
             if (self.useCOM == True):
@@ -45,13 +46,13 @@ class gameCheck:
                     else:
                         pName = "Expired Task"
                     usage = task.UtilizationPercentage
-                    if (int(usage) > self.percThreshoold):
+                    if (int(usage) > self.percThreshold):
                         if (pid in self.activeTasks.keys()):
                             self.activeTasks[pid] = self.activeTasks[pid] + 1
                         else:
                             self.activeTasks[pid] = 1
                         self.debugMsg = self.debugMsg + f"adding {pid}-\t{pName}: {usage}\n"
-            #check keys to see if a task has exceeded for 4 passes
+            #check keys to see if a task has exceeded for self.time passes
             if (self.loop == self.times):
                 for x in self.activeTasks:
                     if (self.activeTasks[x] > self.times):

@@ -59,16 +59,21 @@ class MainObj:
         self.version = "1.1.0"
         #self.pimax_usb_vendor_id = 0
 
-        self.threeDThresh = 'None'
-        self.minerAppPath = 'None'
-        self.workerName = 'None'
-        self.coinAddr = 'None'
-        self.compute = 'None'
-        self.poolAddr = 'None'
-        
+        self.threeDThresh = None
+        self.minerAppPath = None
+        self.workerName = None
+        self.coinAddr = None
+        self.compute = None
+        self.poolAddr1 = None
+        self.poolAddr2 = None
+        self.poolAddr3 = None
+        self.gpuCheckPasses = None
+        self.respTimeout = None
+        self.workTimeout = None
+
         self.minerProc = 0
 
-        self.sleep_time_sec = 5
+        self.sleep_time_sec = None
         self.debug_logs = False
 #        self.debug_bypass_usb = False
 
@@ -141,20 +146,29 @@ class MainObj:
             config = configparser.ConfigParser()
             config.read('configuration.ini')
             logging.info("Miner path: " + config['Miner']['APP_PATH'])
-            self.threeDThresh = config['Miner']['3D_THRESHOLD']
-            self.minerAppPath = config['Miner']['APP_PATH']
+            miner = config["Miner"]
+            self.threeDThresh = miner.get('3D_THRESHOLD')
+            self.minerAppPath = miner.get('APP_PATH')
             self.workerName = os.getenv('COMPUTERNAME')
             if (self.workerName == ""):
-                self.workerName = config['Miner']['WORKER_NAME']
-            self.coinAddr = config['Miner']['ADDRESS']
-            computeStr = config['Miner']['COMPUTE']
+                self.workerName = miner.get('WORKER_NAME')
+            self.coinAddr = miner.get('ADDRESS')
+            self.poolAddr1 = miner.get('POOL1')
+            self.poolAddr2 = miner.get('POOL2')
+            self.poolAddr3 = miner.get('POOL3')
+            computeStr = miner.get('COMPUTE', 'cuda')
             if (computeStr == 'cuda'):
                 self.compute = '-U'
                 logging.info(f"Using cuda compute library")
             else:
                 self.compute = '-G'
                 logging.info(f"Using openCL compute library")
-            self.poolAddr = config['Miner']['POOL_ADDR']
+            self.respTimeout = miner.get('ETHM_RESP_TIMEOUT', "30")
+            self.workTimeout = miner.get('ETHM_WORK_TIMEOUT', "300")
+            self.gpuCheckPasses = miner.get('GPU_CHECK_PASSES', '3')
+            self.sleep_time_sec = miner.get('CHECK_SLEEP', '5')
+            logging.info(f"gpu Check passes: {self.gpuCheckPasses}")
+            logging.info(f"gpu Check sleep: {self.sleep_time_sec} sec")
             logging.info(f"Will run or quit this miner when 3D threshold is {self.threeDThresh}: \n{self.minerAppPath}")
         except Exception as err:
             if not self.quit_main:
@@ -171,7 +185,20 @@ class MainObj:
                 m = re.search("(^.*)\\\\.*\.exe",self.minerAppPath)
                 minerWD = m.group(1)
                 #os.chdir(minerWD)
-                minerPathStr = f"{self.minerAppPath} {self.compute} -P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr}"
+                if (self.poolAddr1 != None):
+                    poolStr1 = f" -P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr1} "
+                else:
+                    poolStr1 = ""
+                if (self.poolAddr2 != None):
+                    poolStr2 = f" -P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr2} "
+                else:
+                    poolStr2 = ""
+                if (self.poolAddr3 != None):
+                    poolStr3 = f" -P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr3} "
+                else:
+                    poolStr3 = ""
+                minerPathStr = f"{self.minerAppPath} {self.compute} --report-hashrate --response-timeout {self.respTimeout}" \
+                               f" --work-timeout {self.workTimeout}{poolStr1}{poolStr2}{poolStr3}"
                 logging.info(f"running {minerPathStr}")
                 self.minerProc = sp.Popen(minerPathStr, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE)
                 time.sleep(3)
@@ -257,10 +284,10 @@ class GPU(threading.Thread):
         """
         try:
             self.lock.release()
-            self.cg = checkGPU.gameCheck(int(maininst.threeDThresh))
+            self.cg = checkGPU.gameCheck(int(maininst.threeDThresh), int(maininst.gpuCheckPasses))
 
             while True:
-                time.sleep(maininst.sleep_time_sec)
+                time.sleep(int(maininst.sleep_time_sec))
                 if maininst.get_quit_main():
                     logging.debug(self.label + " thread exiting due to quit main")
                     break

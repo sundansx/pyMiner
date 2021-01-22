@@ -23,15 +23,21 @@ Command line switches:
 
 Config File (remove comments):
 [Miner]
-3D_THRESHOLD = 15  ;Threshhold of GPU % usage that determines if a game is active.  coinmining uses cuda/compute and will not trigger this.
-APP_PATH = W:\temp\ethMining\ethminer.exe ; path to ethminer
-WORKER_NAME = <Name> ;  this is the name of the miner computer.  only used if app cannot determine this from COMPUTERNAME env var
-ADDRESS = <user Ethereum address>;  your mining address 0xnnnnnnnnnnnnnnnnnnnnnnn
-COMPUTE = cuda ; cuda or opencl lib used for mining.  amd = opencl, nvidia = cuda or opencl
-POOL_ADDR = eu1.ethermine.org:4444;  pool address and port
-
+3D_THRESHOLD = 15  - Threshhold of GPU % usage that determines if a game is active.  coinmining uses cuda/compute and will not trigger this.
+APP_PATH = W:\temp\ethMining\ethminer.exe - path to ethminer
+WORKER_NAME = <Name> -  this is the name of the miner computer.  only used if app cannot determine this from COMPUTERNAME env var
+ADDRESS = <user Ethereum address>  -  your mining address 0xnnnnnnnnnnnnnnnnnnnnnnn
+COMPUTE = cuda - cuda or opencl lib used for mining.  amd = opencl, nvidia = cuda or opencl
+POOL1 = us2.ethermine.org:4444 - This is the addresss of the main mining pool
+POOL2 = us1.ethermine.org:4444  - first fallback pool number
+POOL3 = eu1.ethermine.org:4444  - second fallback pool
+ETHM_RESP_TIMEOUT = 25  - this is the ethminer "--response timeout" passed to ethminer
+ETHM_WORK_TIMEOUT = 301  - this it the ethminer "--work timeout" passed to ethminer
+GPU_CHECK_PASSES = 3  - this is now many times the app has to find a game/3d app past the 3d threshold to count as active
+CHECK_SLEEP = 4  - how long the gpu check loop sleeps between checks.  shorten this to find the game faster, but takes more cpu
 Limitations:
 - Tested only on Windows 10
+- will not monitor the ethminer task
 
 Requirements:
 - A miner program of your own.  Designed to be used with latest etherminer on windows 10.
@@ -44,7 +50,7 @@ Support:
 - you can submit an issue on this github
 
 Todo:
-- Algorithm for detecting an active game needs to be opomized.  It enumerates the resource usage list via WMI right now and uses too much processor
+- Add thread to monitor the ethminer application for activity and presence.  requests module to ethminer web interface?
 
 # Changelog:
 - v1.5.2
