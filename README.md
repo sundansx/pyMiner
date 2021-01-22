@@ -24,17 +24,29 @@ Command line switches:
 Config File (remove comments):
 [Miner]
 3D_THRESHOLD = 15  - Threshhold of GPU % usage that determines if a game is active.  coinmining uses cuda/compute and will not trigger this.
+
 APP_PATH = W:\temp\ethMining\ethminer.exe - path to ethminer
+
 WORKER_NAME = <Name> -  this is the name of the miner computer.  only used if app cannot determine this from COMPUTERNAME env var
+
 ADDRESS = <user Ethereum address>  -  your mining address 0xnnnnnnnnnnnnnnnnnnnnnnn
+
 COMPUTE = cuda - cuda or opencl lib used for mining.  amd = opencl, nvidia = cuda or opencl
+
 POOL1 = us2.ethermine.org:4444 - This is the addresss of the main mining pool
+
 POOL2 = us1.ethermine.org:4444  - first fallback pool number
+
 POOL3 = eu1.ethermine.org:4444  - second fallback pool
+
 ETHM_RESP_TIMEOUT = 25  - this is the ethminer "--response timeout" passed to ethminer
+
 ETHM_WORK_TIMEOUT = 301  - this it the ethminer "--work timeout" passed to ethminer
+
 GPU_CHECK_PASSES = 3  - this is now many times the app has to find a game/3d app past the 3d threshold to count as active
+
 CHECK_SLEEP = 4  - how long the gpu check loop sleeps between checks.  shorten this to find the game faster, but takes more cpu
+
 Limitations:
 - Tested only on Windows 10
 - will not monitor the ethminer task
@@ -53,44 +65,17 @@ Todo:
 - Add thread to monitor the ethminer application for activity and presence.  requests module to ethminer web interface?
 
 # Changelog:
-- v1.5.2
-    - Fix: Removed verify write from BLE commands
-    - New: additional debug messages
-- v1.5.1
-    - New: Dump USB HID in logs if run with debug_logs flag
-    - Fix: small fixes for the dashboard
-- v1.5.0
-    - New: added "--version" switch to display version number in a toast notification
-    - New: (almost) complete code refactoring
-    - New: Classes for main and Base Stations to avoid use of global vars and de-duplication
-    - New: Discovery runs in its own thread, retries 20 times until all BS are found
-    - New: console log window is now renamed as status panel, includes now status information
-    - New: improved console log window with colored levels
-    - New: hints in logs for troubleshooting if too many connection errors are logged over a short period
-    - New: Basestation mode "Auto" defaults to Ping, "Idle" execute last command and idles
-    - New: The status panel windows includes buttons to send Wakeup, Standby, Change mode, Run Discovery, switch Headset to Debug mode
-    - Fix: standby is sent when headset switches off and at exit program
-    - Fix: improved error messages management
-    - Fix: many more fixes thanks to refactoring
-    - Note: added some code the manage the Valve BS v2, still not working
- - v1.4.0
-    - Fix: bleak python library used properly
-- v1.3.1
-    - Fix: Console log window centered on screen 
-    - New: Exceptions handling for main thread with Windows 10 toast notifications
-- v1.3
-    - Fix: Too many small fixes and enhancements to list 
-    - New: Console log output with autoscroll and copy to clipboard
-    - New: DEBUG log level can be enable via command line switch
-    - New: Separate threads for BS loops
-    - New: Proper logging output
-    - New: Standby command issued to BS when HS is On>Off
-    - New: BS Timeout configurable in .ini
-    - New: Added version info to executable
-- v1.2
-    - Fix: Switch to using LightHouse DB json file from Pimax runtime folder 
-    - New: version in system tray
-    - New: BS status for Discovered, Wakeup, Pinging, Errors
-- v1.1
-    - Fix: HeadSet status not updated properly from On to Off
-    - Executable: added icon
+- v1.2.0
+    - added ability to use multiple pools
+    - added tweaks for timing check loop
+    - added ablity to change some more ethmining settings (work and response timeouts)
+    - added --report-hashrate to report hashrate to pool
+
+- v1.1.0
+    - moved to WMI access via Com object as default method.  20x faster (lower processor too)
+    - fixed some fault bugs
+    - scans faster for 3d app
+    - version 1.1 release
+
+- v1.0.0
+    - first stab.  initial release for github
