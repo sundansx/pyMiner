@@ -56,7 +56,7 @@ class MainObj:
         Init function will initialize the instance with default runtime values
         :rtype: object
         """
-        self.version = "1.1.0"
+        self.version = "1.2.0"
         #self.pimax_usb_vendor_id = 0
 
         self.threeDThresh = None
