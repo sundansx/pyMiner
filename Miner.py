@@ -56,8 +56,7 @@ class MainObj:
         Init function will initialize the instance with default runtime values
         :rtype: object
         """
-        self.version = "1.2.0"
-        #self.pimax_usb_vendor_id = 0
+        self.version = "1.3.0"
 
         self.threeDThresh = None
         self.minerAppPath = None
@@ -76,7 +75,6 @@ class MainObj:
 
         self.sleep_time_sec = None
         self.debug_logs = False
-#        self.debug_bypass_usb = False
 
         self.tray_icon = "Miner_on.ico"
         self.logformat = "%(asctime)s %(levelname)s (%(module)s): %(message)s"
@@ -639,12 +637,6 @@ class LogWnd(wx.Frame):
 
     def ondebugbutton(self, e):
         pass
-#        if maininst.debug_bypass_usb:
-#            maininst.debug_bypass_usb = False
-#            self.debugbtn.SetLabel("Miner Debug")
-#        else:
-#            maininst.debug_bypass_usb = True
-#            self.debugbtn.SetLabel("Miner Auto")
 
     def onwakeupbutton(self, e):
         maininst.setMinerOn()
@@ -693,9 +685,6 @@ class LogWnd(wx.Frame):
                 # msg = msg + " NOASB"
                 reposition = True
                 autoscroll = False
-
-            # msg = msg + " sbrng=" + str(sbrng) + " sbpos=" + str(sbpos) + " cur=" + str(current_pos) + " end=" + str(
-            #    end_pos)
 
             if autoscroll:
                 # msg = msg + " YESA"
