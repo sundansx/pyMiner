@@ -70,7 +70,8 @@ class MainObj:
         self.gpuCheckPasses = None
         self.respTimeout = None
         self.workTimeout = None
-
+        self.preMineTask = None
+        self.postMineTask = None
         self.minerProc = 0
 
         self.sleep_time_sec = None
@@ -170,6 +171,11 @@ class MainObj:
             logging.info(f"gpu Check passes: {self.gpuCheckPasses}")
             logging.info(f"gpu Check sleep: {self.sleep_time_sec} sec")
             logging.info(f"Will run or quit this miner when 3D threshold is {self.threeDThresh}: \n{self.minerAppPath}")
+            self.preMineTask = miner.get('PREMINE_TASK')
+            self.postMineTask = miner.get('POSTMINE_TASK')
+            logging.info(f"will run pre-mine task: \'{self.preMineTask}\'")
+            logging.info(f"will run post-mine task: \'{self.postMineTask}\'")
+
         except Exception as err:
             if not self.quit_main:
                 self.toast_err("Load configuration file exception: " + str(err))
@@ -180,11 +186,22 @@ class MainObj:
             if (cmd == 'Off'):
                 logging.debug("stopping miner")
                 self.minerProc.kill()
+                if (self.postMineTask != None):
+                    logging.info(f"starting post-mine task.")
+                    #m = re.search("(^.*)\\\\.*\.exe",self.postMineTask)
+                    #postMineStr = m.group(1)
+                    postMineProc = sp.run(self.postMineTask, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, capture_output=True)
+                    logging.info(f"post mine result: {postMineProc.stdout.decode().rstrip()}")
             elif (cmd == 'On'):
                 logging.debug("starting miner")
                 m = re.search("(^.*)\\\\.*\.exe",self.minerAppPath)
                 minerWD = m.group(1)
-                #os.chdir(minerWD)
+                if (self.preMineTask != None):
+                    logging.info(f"starting pre-mine task.")
+                    #m = re.search("(^.*)\\\\.*\.exe",self.preMineTask)
+                    #preMineStr = m.group(1)
+                    preMineProc = sp.run(self.preMineTask, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, capture_output=True)
+                    logging.info(f"pre mine result: {preMineProc.stdout.decode().rstrip()}")
                 if (self.poolAddr1 != None):
                     poolStr1 = f" -P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr1} "
                 else:
@@ -204,15 +221,12 @@ class MainObj:
                 time.sleep(3)
                 hwnd = self.get_hwnds_for_pid(self.minerProc.pid)
                 win32gui.ShowWindow(hwnd[0], win32con.SW_MINIMIZE)
-                #for hwnd in get_hwnds_for_pid(notepad.pid):
-                #    print hwnd, "=>", win32gui.GetWindowText(hwnd)
-                    #win32gui.SendMessage(hwnd, win32con.WM_CLOSE, 0, 0)
-                #self.minerProc = sp.Popen(minerPathStr, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, shell=True)
-                #self.minerProc = sp.Popen(f"{self.minerAppPath} test.txt")
             else:
                 raise Exception("Unknown Miner state")
         except Exception as err:
-                logging.error(f"Error: Failed to start or stop Miner\n" + str(err))
+                logging.error(f"Error: Failed to turn {cmd} Miner\n" + str(err))
+                logging.error(traceback.print_exc())
+
     
     def setMinerOn(self):
         """
