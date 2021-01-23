@@ -168,7 +168,7 @@ class MainObj:
             self.sleep_time_sec = miner.get('CHECK_SLEEP', '5')
             logging.info(f"gpu Check passes: {self.gpuCheckPasses}")
             logging.info(f"gpu Check sleep: {self.sleep_time_sec} sec")
-            logging.info(f"Will run or quit this miner when 3D threshold is {self.threeDThresh}: \n{self.minerAppPath}")
+            logging.info(f"Will run or quit this miner when 3D threshold is {self.threeDThresh}: {self.minerAppPath}")
             self.preMineTask = miner.get('PREMINE_TASK')
             self.postMineTask = miner.get('POSTMINE_TASK')
             logging.info(f"will run pre-mine task: \'{self.preMineTask}\'")
