@@ -31,6 +31,7 @@ import subprocess as sp
 import win32con
 import win32gui
 import win32process
+import win32api
 
 import pywinusb.hid as hid
 import wx
@@ -56,7 +57,7 @@ class MainObj:
         Init function will initialize the instance with default runtime values
         :rtype: object
         """
-        self.version = "1.3.0"
+        self.version = "1.3.1"
 
         self.threeDThresh = None
         self.minerAppPath = None
@@ -188,17 +189,17 @@ class MainObj:
                     logging.info(f"starting post-mine task.")
                     #m = re.search("(^.*)\\\\.*\.exe",self.postMineTask)
                     #postMineStr = m.group(1)
-                    postMineProc = sp.run(self.postMineTask, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, capture_output=True)
+                    postMineProc = sp.run(self.postMineTask, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, stdin=sp.PIPE, stderr=sp.PIPE, stdout=sp.PIPE)
                     logging.info(f"post mine result: {postMineProc.stdout.decode().rstrip()}")
             elif (cmd == 'On'):
                 logging.debug("starting miner")
-                m = re.search("(^.*)\\\\.*\.exe",self.minerAppPath)
-                minerWD = m.group(1)
+                #m = re.search("(^.*)\\\\.*\.exe",self.minerAppPath)
+                #minerWD = m.group(1)
                 if (self.preMineTask != None):
                     logging.info(f"starting pre-mine task.")
                     #m = re.search("(^.*)\\\\.*\.exe",self.preMineTask)
                     #preMineStr = m.group(1)
-                    preMineProc = sp.run(self.preMineTask, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, capture_output=True)
+                    preMineProc = sp.run(self.preMineTask, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, stdin=sp.PIPE, stderr=sp.PIPE, stdout=sp.PIPE)                    
                     logging.info(f"pre mine result: {preMineProc.stdout.decode().rstrip()}")
                 if (self.poolAddr1 != None):
                     poolStr1 = f" -P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr1} "
@@ -261,6 +262,42 @@ class MainObj:
         hwnds = []
         win32gui.EnumWindows(callback, hwnds)
         return hwnds
+
+    def getFileProperties(self, fname):
+    #Read all properties of the given file return them as a dictionary.
+    
+        propNames = ('Comments', 'InternalName', 'ProductName',
+            'CompanyName', 'LegalCopyright', 'ProductVersion',
+            'FileDescription', 'LegalTrademarks', 'PrivateBuild',
+            'FileVersion', 'OriginalFilename', 'SpecialBuild')
+
+        props = {'FixedFileInfo': None, 'StringFileInfo': None, 'FileVersion': None}
+
+        try:
+            # backslash as parm returns dictionary of numeric info corresponding to VS_FIXEDFILEINFO struc
+            fixedInfo = win32api.GetFileVersionInfo(fname, '\\')
+            props['FixedFileInfo'] = fixedInfo
+            props['FileVersion'] = "%d.%d.%d.%d" % (fixedInfo['FileVersionMS'] / 65536,
+                    fixedInfo['FileVersionMS'] % 65536, fixedInfo['FileVersionLS'] / 65536,
+                    fixedInfo['FileVersionLS'] % 65536)
+
+            # \VarFileInfo\Translation returns list of available (language, codepage)
+            # pairs that can be used to retreive string info. We are using only the first pair.
+            lang, codepage = win32api.GetFileVersionInfo(fname, '\\VarFileInfo\\Translation')[0]
+
+            # any other must be of the form \StringfileInfo\%04X%04X\parm_name, middle
+            # two are language/codepage pair returned from above
+
+            strInfo = {}
+            for propName in propNames:
+                strInfoPath = u'\\StringFileInfo\\%04X%04X\\%s' % (lang, codepage, propName)
+                ## print str_info
+                strInfo[propName] = win32api.GetFileVersionInfo(fname, strInfoPath)
+
+            props['StringFileInfo'] = strInfo
+            return props
+        except:
+            pass
 
 
 class GPU(threading.Thread):

@@ -39,9 +39,9 @@ POOL2 = us1.ethermine.org:4444  - first fallback pool number
 
 POOL3 = eu1.ethermine.org:4444  - second fallback pool
 
-PREMINE_TASK = <pre miner task with full path and arguments (no quotes)>
+PREMINE_TASK = <pre miner task with full path and arguments (no quotes)> 
 
-POSTMINE_TASK = <post miner task with full path and arguments (no quotes)>
+POSTMINE_TASK = <post miner task with full path and arguments (no quotes)> 
 
 ETHM_RESP_TIMEOUT = 25  - this is the ethminer "--response timeout" passed to ethminer
 
@@ -69,6 +69,8 @@ Todo:
 - Add thread to monitor the ethminer application for activity and presence.  requests module to ethminer web interface?
 
 # Changelog:
+- v1.3.1 
+    - fixed bug with pre/post miner launch tasks.
 - v1.3.0
     - added ability to run a task before and after the miner starts.  can be used for stuff like setting gpu clocks
 - v1.2.0
