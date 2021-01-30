@@ -32,6 +32,7 @@ import win32con
 import win32gui
 import win32process
 import win32api
+import psutil
 
 import pywinusb.hid as hid
 import wx
@@ -57,7 +58,7 @@ class MainObj:
         Init function will initialize the instance with default runtime values
         :rtype: object
         """
-        self.version = "1.3.1"
+        self.version = "1.3.2"
 
         self.threeDThresh = None
         self.minerAppPath = None
@@ -80,7 +81,8 @@ class MainObj:
         self.tray_icon = "Miner_on.ico"
         self.logformat = "%(asctime)s %(levelname)s (%(module)s): %(message)s"
 
-        self.gpu_label = 'GPU'
+        self.gpu_label = 'Gaming'
+        self.miner_label = 'Miner'
         self.toomanynoted = False
         self.quit_main = False
 
@@ -95,7 +97,7 @@ class MainObj:
         self.panelstatus = [(0, ("Dashboard", "Status", self.panelupdate)), (1, ("", "", ""))]
         self.paneldata = [[str(k)] + list(v) for k, v in self.panelstatus]
 
-    def set_threads(self, _systray, _gputhr, _logthr):
+    def set_threads(self, _systray, _gputhr, _logthr, _minerthr):
         """
         Set infi.systray, Miner thread and basestations threads in main instance
         :type _logthr: object
@@ -105,6 +107,7 @@ class MainObj:
         self.systray = _systray
         self.gputhr = _gputhr
         self.logthr = _logthr
+        self.minerthr = _minerthr
 
     def settoaster(self, _toaster):
         """
@@ -185,6 +188,7 @@ class MainObj:
             if (cmd == 'Off'):
                 logging.debug("stopping miner")
                 self.minerProc.kill()
+                self.minerProc = 0
                 if (self.postMineTask != None):
                     logging.info(f"starting post-mine task.")
                     #m = re.search("(^.*)\\\\.*\.exe",self.postMineTask)
@@ -299,6 +303,68 @@ class MainObj:
         except:
             pass
 
+class procCheck(threading.Thread):
+
+    def __init__(self, label, _maininst, autostart=False):
+        """
+        Init function will initialize the thread with default values and store reference to the main instance
+        :param label:
+        :param _maininst:
+        :param autostart:
+        """
+        threading.Thread.__init__(self)
+        self.setDaemon(True)
+        self.start_orig = self.start
+        self.start = self.start_local
+        self.lock = threading.Lock()
+        self.lock.acquire()  # lock until variables are set
+        self.label = label
+        self.maininst = _maininst
+        self.tlock = False
+        self.islocked = False
+
+        if autostart:
+            self.start()  # automatically start thread on init
+
+    def run(self):
+        """
+        Run function what will check GPU gaming state
+        """
+        try:
+            self.lock.release()
+
+            while True:
+                time.sleep(5)
+                if maininst.get_quit_main():
+                    logging.debug(self.label + " thread exiting due to quit main")
+                    break
+                if self.tlock:
+                    logging.debug(self.label + " thread lock active")
+                    self.islocked = True
+                    continue
+                self.islocked = False
+                if (maininst.minerProc != 0):
+                    if (psutil.pid_exists(int(maininst.minerProc.pid)) == False):
+                        logging.info(f"{self.label}: Miner has died, restarting")
+                        maininst.setMinerOn()
+
+        except Exception as err:
+            logging.error("Error: %s in %s thread: %s" % (self.__class__.__name__, self.label, str(err)))
+            logging.error(traceback.print_exc())
+
+    def destroy(self):
+        """
+        Override the destroy thread adding lock release
+        """
+        self.lock.release()
+
+    def start_local(self):
+        """
+        Start the thread with original run and acquire the lock
+        """
+        self.start_orig()
+        self.lock.acquire()
+       
 
 class GPU(threading.Thread):
 
@@ -333,7 +399,7 @@ class GPU(threading.Thread):
         """
         try:
             self.lock.release()
-            self.cg = checkGPU.gameCheck(int(maininst.threeDThresh), int(maininst.gpuCheckPasses))
+            self.cg = checkGPU.gameCheck(int(maininst.threeDThresh), int(maininst.gpuCheckPasses), "gamelist.txt")
 
             while True:
                 time.sleep(int(maininst.sleep_time_sec))
@@ -357,8 +423,9 @@ class GPU(threading.Thread):
                 if (self.cg.isGaming == False):
                     returnVal = self.cg.mIsGaming()
                     if (returnVal == True):
-                        logging.debug(self.cg.debugMsg)
-                    elif (returnVal):
+                        if (self.cg.debugMsg != ""):
+                            logging.info(self.cg.debugMsg)
+                    elif (returnVal == False):
                         raise Exception(self.cg.debugMsg)
                     else:
                         raise Exception(f"Unknown return val: {returnVal}")
@@ -987,7 +1054,6 @@ def main(_logger):
 
         args = parser.parse_args()
 
-#        maininst.debug_bypass_usb = args.debug_ignore_usb
         maininst.debug_logs = args.debug_logs
 
         if args.version:
@@ -1030,7 +1096,8 @@ def main(_logger):
                 logging.info("Configuration loaded")
 
                 gputhr = GPU(maininst.gpu_label, maininst)
-                maininst.set_threads(systray, gputhr, logthr)
+                minerthr = procCheck(maininst.miner_label, maininst)
+                maininst.set_threads(systray, gputhr, logthr, minerthr)
                 logging.debug("Threads initialized")
 
                 tray_label = gputhr.gettray()
@@ -1038,11 +1105,10 @@ def main(_logger):
 
                 logging.info("Starting threads")
                 gputhr.start()
+                minerthr.start()
 
                 updatethr = threading.Thread(target=updatepaneldata, args=())
                 updatethr.start()
-
-                #maininst.disco = False
 
                 logging.debug("Threads started")
 
@@ -1051,6 +1117,10 @@ def main(_logger):
                         logging.debug("Quit main_loop, waiting for threads exiting")
                         timeref = time.time()
                         while gputhr.is_alive() :
+                            time.sleep(0.1)
+                            if time.time() - timeref > 5:
+                                break
+                        while minerthr.is_alive() :
                             time.sleep(0.1)
                             if time.time() - timeref > 5:
                                 break
