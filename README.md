@@ -69,6 +69,9 @@ Todo:
 - Add thread to monitor the ethminer application for activity and presence.  requests module to ethminer web interface?
 
 # Changelog:
+- v1.3.2 
+    - added app name caching.  it will check a list called gamelist.txt in root folder for a game it had previously id'ed and immediately stop the Miner.py
+    - added a thread to watch the miner pid and restart it if it dies unexpectedly
 - v1.3.1 
     - fixed bug with pre/post miner launch tasks.
 - v1.3.0
