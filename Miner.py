@@ -33,8 +33,8 @@ import win32gui
 import win32process
 import win32api
 import psutil
+import telnetlib
 
-import pywinusb.hid as hid
 import wx
 import wx.lib
 import wx.lib.newevent
@@ -58,7 +58,7 @@ class MainObj:
         Init function will initialize the instance with default runtime values
         :rtype: object
         """
-        self.version = "1.3.2"
+        self.version = "1.3.4"
 
         self.threeDThresh = None
         self.minerAppPath = None
@@ -73,7 +73,10 @@ class MainObj:
         self.workTimeout = None
         self.preMineTask = None
         self.postMineTask = None
-        self.minerProc = 0
+        self.minerProc = None
+        self.gameActive = False
+        self.miner = "ethminer"
+
 
         self.sleep_time_sec = None
         self.debug_logs = False
@@ -152,6 +155,9 @@ class MainObj:
             miner = config["Miner"]
             self.threeDThresh = miner.get('3D_THRESHOLD')
             self.minerAppPath = miner.get('APP_PATH')
+            if (self.minerAppPath.find("nbminer.exe") != -1):
+                self.miner = "nbminer"
+            logging.info(f"Found miner: {self.miner}")
             self.workerName = os.getenv('COMPUTERNAME')
             if (self.workerName == ""):
                 self.workerName = miner.get('WORKER_NAME')
@@ -181,14 +187,19 @@ class MainObj:
         except Exception as err:
             if not self.quit_main:
                 self.toast_err("Load configuration file exception: " + str(err))
+                logging.error(traceback.print_exc())
                 self.quit_main = True
 
     def setMinerState(self, cmd):
         try:
             if (cmd == 'Off'):
+                if (self.minerProc != None):
+                    if (self.minerProc.pid == 0):
+                        logging.info("Miner already dead")
+                        return
                 logging.debug("stopping miner")
                 self.minerProc.kill()
-                self.minerProc = 0
+                self.minerProc = None
                 if (self.postMineTask != None):
                     logging.info(f"starting post-mine task.")
                     #m = re.search("(^.*)\\\\.*\.exe",self.postMineTask)
@@ -196,6 +207,10 @@ class MainObj:
                     postMineProc = sp.run(self.postMineTask, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, stdin=sp.PIPE, stderr=sp.PIPE, stdout=sp.PIPE)
                     logging.info(f"post mine result: {postMineProc.stdout.decode().rstrip()}")
             elif (cmd == 'On'):
+                if (self.minerProc != None):
+                    if (self.minerProc.pid > 0):
+                        logging.info("Miner already running")
+                        return
                 logging.debug("starting miner")
                 #m = re.search("(^.*)\\\\.*\.exe",self.minerAppPath)
                 #minerWD = m.group(1)
@@ -203,22 +218,34 @@ class MainObj:
                     logging.info(f"starting pre-mine task.")
                     #m = re.search("(^.*)\\\\.*\.exe",self.preMineTask)
                     #preMineStr = m.group(1)
-                    preMineProc = sp.run(self.preMineTask, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, stdin=sp.PIPE, stderr=sp.PIPE, stdout=sp.PIPE)                    
+                    preMineProc = sp.run(self.preMineTask, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE, stdin=sp.PIPE, stderr=sp.PIPE, stdout=sp.PIPE)
                     logging.info(f"pre mine result: {preMineProc.stdout.decode().rstrip()}")
                 if (self.poolAddr1 != None):
-                    poolStr1 = f" -P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr1} "
+                    if (self.miner == "nbminer"):
+                        poolStr1 = f"-o stratum+tcp://{self.poolAddr3}"
+                    else:
+                        poolStr1 = f"-P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr1}"
                 else:
                     poolStr1 = ""
                 if (self.poolAddr2 != None):
-                    poolStr2 = f" -P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr2} "
+                    if (self.miner == "nbminer"):
+                        poolStr2 = f"-o1 stratum+tcp://{self.poolAddr3}"
+                    else:
+                        poolStr2 = f"-P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr2}"
                 else:
                     poolStr2 = ""
                 if (self.poolAddr3 != None):
-                    poolStr3 = f" -P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr3} "
+                    if (self.miner == "nbminer"):
+                        poolStr3 = f"-o2 stratum+tcp://{self.poolAddr3}"
+                    else:
+                        poolStr3 = f"-P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr3}"
                 else:
                     poolStr3 = ""
-                minerPathStr = f"{self.minerAppPath} {self.compute} --report-hashrate --response-timeout {self.respTimeout}" \
-                               f" --work-timeout {self.workTimeout}{poolStr1}{poolStr2}{poolStr3}"
+                if (self.miner == "nbminer"):
+                    minerPathStr = f"{self.minerAppPath} -a ethash --no-watchdog {poolStr1} {poolStr2} {poolStr3} -u {self.coinAddr}.{self.workerName}"
+                else:
+                    minerPathStr = f"{self.minerAppPath} {self.compute} --report-hashrate --response-timeout {self.respTimeout}" \
+                               f" --api-port 3333 --work-timeout {self.workTimeout} {poolStr1} {poolStr2} {poolStr3}"
                 logging.info(f"running {minerPathStr}")
                 self.minerProc = sp.Popen(minerPathStr, creationflags=sp.CREATE_NEW_CONSOLE | sp.SW_HIDE)
                 time.sleep(3)
@@ -235,13 +262,19 @@ class MainObj:
         """
         Start Ethminer
         """
+        #self.gputhr.tlock = False
         self.setMinerState("On")
+        
 
     def setMinerOff(self):
         """
         Stop EthMiner
         """
-        self.setMinerState("Off")
+        try:
+            #self.gputhr.tlock = True
+            self.setMinerState("Off")
+        except Exception as err:
+            logging.error(f"gputhr does not exist; err")
  
     def setmode(self):
         """
@@ -254,6 +287,15 @@ class MainObj:
         self.mode = _mode
         logging.info("Set BS mode to " + str(_mode))
         self.mode = _mode
+
+    def setExclusion(self):
+        """
+        write current task to exclusion list
+        """
+        if (self.gputhr.cg.isGaming == True):
+            self.gputhr.cg.writeExcludeFile()
+            self.setMinerOn()
+
 
     def get_hwnds_for_pid(self, pid):
         def callback(hwnd, hwnds):
@@ -322,6 +364,8 @@ class procCheck(threading.Thread):
         self.maininst = _maininst
         self.tlock = False
         self.islocked = False
+        self.localhost = '127.0.0.1'
+        self.localport = 3333
 
         if autostart:
             self.start()  # automatically start thread on init
@@ -332,26 +376,58 @@ class procCheck(threading.Thread):
         """
         try:
             self.lock.release()
-
+            passnum = 0
             while True:
                 time.sleep(5)
-                if maininst.get_quit_main():
-                    logging.debug(self.label + " thread exiting due to quit main")
+                if self.maininst.get_quit_main():
+                    logging.debug(self.label + " thread exiting due to quit main (proCheck class)")
                     break
                 if self.tlock:
-                    logging.debug(self.label + " thread lock active")
+                    logging.debug(self.label + " thread lock active (procCheck class)")
                     self.islocked = True
                     continue
                 self.islocked = False
-                if (maininst.minerProc != 0):
-                    if (psutil.pid_exists(int(maininst.minerProc.pid)) == False):
+                if (self.maininst.minerProc != None):
+                    logging.debug(f"minter pid = {self.maininst.minerProc.pid}")
+                    minerExists = psutil.pid_exists(int(self.maininst.minerProc.pid))
+                    if (minerExists == False):
                         logging.info(f"{self.label}: Miner has died, restarting")
-                        maininst.setMinerOn()
+                        self.maininst.minerProc = None
+                        self.maininst.setMinerOn()
+                        continue
+                    else:
+                        if (self.miningRate() == 0.0):
+                            passnum += 1
+                        else:
+                            passnum = 0
+                    if (passnum == 10):   
+                        logging.info(f"{self.label}: Miner is brain dead, restarting")
+                        self.maininst.setMinerOff()
+                        time.sleep(5)
+                        self.maininst.setMinerOn()
+                        passnum = 0
 
         except Exception as err:
             logging.error("Error: %s in %s thread: %s" % (self.__class__.__name__, self.label, str(err)))
             logging.error(traceback.print_exc())
-
+            
+    def miningRate(self):
+        #nbminer does not need monitor interface
+        if (self.maininst.miner == "nbminer"):
+            return 1.0
+        try:
+            status = ""
+            with telnetlib.Telnet(self.localhost, self.localport) as tn:
+                tn.write('{\"method\": \"miner_getstat1\", \"jsonrpc\": \"2.0\", \"id\": 5 }'.encode('ascii') + b"\n")
+                status = tn.read_until(b"}", 5).decode()
+            status = json.loads(status)
+            rate = int(status['result'][3])/1000
+            logging.debug(f"rate = {rate}")
+            return rate
+        except Exception as err:
+            logging.error("Error: %s in %s thread: %s" % (self.__class__.__name__, self.label, str(err)))
+            logging.error(traceback.print_exc())
+        
     def destroy(self):
         """
         Override the destroy thread adding lock release
@@ -387,7 +463,8 @@ class GPU(threading.Thread):
         self.status = self.status_initial
         self.tlock = False
         self.islocked = False
-        self.gameActive = False
+        self.cg = None
+        self.cachedMsg = ""
 
         if autostart:
             self.start()  # automatically start thread on init
@@ -404,10 +481,10 @@ class GPU(threading.Thread):
             while True:
                 time.sleep(int(maininst.sleep_time_sec))
                 if maininst.get_quit_main():
-                    logging.debug(self.label + " thread exiting due to quit main")
+                    logging.debug(self.label + " thread exiting due to quit main (GPU class)")
                     break
                 if self.tlock:
-                    logging.debug(self.label + " thread lock active")
+                    logging.debug(self.label + " thread lock active (GPU class)")
                     self.islocked = True
                     continue
                 # if maininst.disco:
@@ -423,8 +500,10 @@ class GPU(threading.Thread):
                 if (self.cg.isGaming == False):
                     returnVal = self.cg.mIsGaming()
                     if (returnVal == True):
-                        if (self.cg.debugMsg != ""):
+                        if (self.cg.debugMsg != "" and self.cg.debugMsg != self.cachedMsg):
+                            self.cachedMsg = self.cg.debugMsg
                             logging.info(self.cg.debugMsg)
+                            self.cg.debugMsg = ""
                     elif (returnVal == False):
                         raise Exception(self.cg.debugMsg)
                     else:
@@ -439,8 +518,8 @@ class GPU(threading.Thread):
                         raise Exception(f"Unknown return val: {returnVal}")
                 if maininst.debug_logs:
                     logging.debug(f"Game Active?: {self.cg.isGaming}")
-                self.gameActive = self.cg.isGaming
-                if (self.gameActive == False):
+                self.maininst.gameActive = self.cg.isGaming
+                if (self.maininst.gameActive == False):
                     self.setstatus("Off")
                 else:
                     self.setstatus("On")
@@ -581,10 +660,12 @@ class LogWnd(wx.Frame):
         """
         #import wx.lib.inspection
         #wx.lib.inspection.InspectionTool().Show()
+        percentHi = 50
+        percentWide = 30
 
         try:
             frame_style = wx.DEFAULT_FRAME_STYLE | wx.RESIZE_BORDER
-            frame_style = frame_style & ~ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX)
+            #frame_style = frame_style & ~ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX)
 
             wx.lib.colourdb.updateColourDB()
 
@@ -601,19 +682,20 @@ class LogWnd(wx.Frame):
             self.SetIcon(wx.Icon("Miner_on.ico"))
 
             (self.display_width_, self.display_height_) = wx.GetDisplaySize()
+            
 
-            frame_width = self.display_width_ * 90 / 100
-            frame_height = self.display_height_ * 85 / 100
+            frame_width = self.display_width_ * percentWide / 100
+            frame_height = self.display_height_ * percentHi / 100
             self.SetSize(wx.Size(frame_width, frame_height))
 
             panel_width = self.GetClientSize().GetWidth()-2
             panel_height = self.GetClientSize().GetHeight()-46
 
-            status_width = 500
+            status_width = 500 * percentWide / 100
             text_width = panel_width - status_width
             text_height = panel_height
             if text_width < 1:
-                text_width = 100
+                text_width = 100 * percentWide / 100
 
             value_width = panel_width - text_width
             unit_width = value_width/10
@@ -679,7 +761,7 @@ class LogWnd(wx.Frame):
             self.debugbtn = wx.Button(panel, wx.ID_ANY, label="Miner Debug")
             self.debugbtn.Bind(wx.EVT_BUTTON, self.ondebugbutton)
             self.Bind(wx.EVT_BUTTON, self.ondebugbutton, self.debugbtn)
-            self.bsmodebtn = wx.Button(panel, wx.ID_ANY, label="BS Switch mode")
+            self.bsmodebtn = wx.Button(panel, wx.ID_ANY, label="Exclude")
             self.bsmodebtn.Bind(wx.EVT_BUTTON, self.onbsmodebutton)
             self.Bind(wx.EVT_BUTTON, self.onbsmodebutton, self.bsmodebtn)
             self.wakeupbtn = wx.Button(panel, wx.ID_ANY, label="Miner On")
@@ -749,7 +831,8 @@ class LogWnd(wx.Frame):
         maininst.setMinerOff()
 
     def onbsmodebutton(self, e):
-        maininst.setmode()
+        #maininst.setmode()
+        maininst.setExclusion()
 
     def on_log_msg(self, e):
         """
@@ -1090,7 +1173,6 @@ def main(_logger):
                 logging.info("Miner Version: " + maininst.version)
                 maininst.settoaster(toaster)
                 maininst.load_configuration(toaster)
-                maininst.setMinerOn()
                 if maininst.get_quit_main():
                     raise Exception("Exiting due to configuration file load error")
                 logging.info("Configuration loaded")
@@ -1100,6 +1182,7 @@ def main(_logger):
                 maininst.set_threads(systray, gputhr, logthr, minerthr)
                 logging.debug("Threads initialized")
 
+                maininst.setMinerOn()
                 tray_label = gputhr.gettray()
                 systray.update(hover_text=tray_label)
 
@@ -1125,6 +1208,10 @@ def main(_logger):
                             if time.time() - timeref > 5:
                                 break
                         logging.debug("Quit main_loop, systray status=" + str(maininst.quit_main))
+                        logging.debug("Killing minerWatchdog processes")
+                        for proc in psutil.process_iter(['pid','name']):
+                            if (proc.info['name'] == "minerWatchdog.exe"):
+                                proc.terminate()
                         break
 
                     tray_label = gputhr.gettray()

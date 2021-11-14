@@ -8,7 +8,7 @@ import win32com.client
 from os import path
 
 class gameCheck:
-    def __init__(self, threshold, times = 3, gameListFile = "gamelist.txt", useCOM = True):
+    def __init__(self, threshold, times = 3, gameListFile = "gamelist.txt", excludeListFile = "excludelist.txt", useCOM = True):
 
         self.w = wmi.WMI(find_classes=False)
         self.isGaming = False
@@ -24,9 +24,12 @@ class gameCheck:
         objWMIService = win32com.client.Dispatch("WbemScripting.SWbemLocator")
         self.objSWbemServices = objWMIService.ConnectServer(strComputer,"root\cimv2")
         self.gameListFile = gameListFile
+        self.excludeListFile = excludeListFile
         self.gameList = []
+        self.excludeList = []
         self.activeGamePID = None
         self.readGameFile()
+        self.readExcludeFile()
         self.isListDirty = False
 
     def readGameFile(self):
@@ -37,12 +40,37 @@ class gameCheck:
                 self.gameList[c] = item.rstrip() 
             fh.close()
             self.isListDirty = False
+    
+    def readExcludeFile(self):
+        if (path.exists(self.excludeListFile)):
+            fh = open(self.excludeListFile,"r")
+            self.excludeList = fh.readlines()
+            for c,item in enumerate(self.excludeList):
+                self.excludeList[c] = item.rstrip() 
+            fh.close()
+            self.isListDirty = False
+     
+    def writeExcludeFile(self):
+        fh = open(self.excludeListFile,"a")
+        fh.write(psutil.Process(int(self.activeGamePID)).name() + '\n') 
+        fh.close()
+        self.isListDirty = True
         
 
-    def isOnList(self, newItem):
+    def isOnGameList(self, newItem):
         if (self.isListDirty == True):
+            self.debugMsg = self.debugMsg + f"Rereading Include file"
             self.readGameFile()
         for item in self.gameList:
+            if (newItem == item):
+                return True
+        return False
+        
+    def isOnExcludeList(self, newItem):
+        if (self.isListDirty == True):
+            self.debugMsg = self.debugMsg + f"Rereading Exclude file"
+            self.readExcludeFile()
+        for item in self.excludeList:
             if (newItem == item):
                 return True
         return False
@@ -51,7 +79,7 @@ class gameCheck:
         pid = 0
         pName = ""
         usage = ""
-        self.debugMsg = ""
+        #self.debugMsg = ""
         #self.loop = 0
         gpu = None
         try:
@@ -67,32 +95,38 @@ class gameCheck:
                     pName = psutil.Process(int(pid)).name()
                 else:
                     continue
-                if (self.isOnList(pName) == True):
-                    self.debugMsg = self.debugMsg + f"found cached 3d app: ({pName}:{pid})"
+                if (self.isOnExcludeList(pName) == True):
+                    self.debugMsg = f"Found excluded game, {pName}"
+                if ( (self.isOnGameList(pName) == True) and (self.isOnExcludeList(pName) == False) ):
+                    self.debugMsg = f"found cached 3d app: ({pName}:{pid})"
                     self.isGaming = True
                     self.activeGamePID = pid
                     return True
             #enumerate gpu loads
             for task in gpu:
-                if (task.name.find('engtype_Graphics') > -1 or task.name.find('engtype_3D') > -1):
+                if (task.name.find('engtype_Graphics') > -1 or task.name.find('engtype_3D') > -1 or task.name.find('engtype_VR') > -1):
                     m = re.search("^pid_([0-9]+)_luid.+",task.name)
                     pid = m.group(1)
                     if (psutil.pid_exists(int(pid))):
                         pName = psutil.Process(int(pid)).name()
                     else:
                         pName = "Expired Task"
+                        continue
+                    #skip the desktop window manager (dwm.exe) for VR
+                    #if (self.isOnExcludeList(pName) == True):
+                    #    continue
                     usage = task.UtilizationPercentage
-                    if (int(usage) > self.percThreshold):
+                    if ( (int(usage) > self.percThreshold) and (self.isOnExcludeList(pName) == False) ):
                         if (pid in self.activeTasks.keys()):
                             self.activeTasks[pid] = self.activeTasks[pid] + 1
                         else:
                             self.activeTasks[pid] = 1
-                        self.debugMsg = self.debugMsg + f"adding {pid}-\t{pName}: {usage}"
+                        self.debugMsg = self.debugMsg + f"found {pid}-\t{pName}: {usage}"
             #check keys to see if a task has exceeded for self.time passes
             if (self.loop == self.times):
                 for x in self.activeTasks:
                     if (self.activeTasks[x] > self.times):
-                        self.debugMsg = self.debugMsg + f"found active 3d app: ({x})\n"
+                        self.debugMsg = self.debugMsg + f"adding active 3d app: ({x})\n"
                         fh = open(self.gameListFile,"a")
                         gameList = fh.write(psutil.Process(int(x)).name() + '\n') 
                         fh.close()

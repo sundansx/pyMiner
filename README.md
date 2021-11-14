@@ -1,17 +1,18 @@
 # pyMiner - python miner manager for Windows
 
-threading/systray code from:
+threading/systray code based on.  (thanks):
 https://github.com/mann1x/pimax_bs_manager
 Thanks a lot to mannix for posting is work and all the previous contributors!
 
 Usage:
-- Just run the executable or the Python script (tested on 3.7.3) 
+- Just run the miner.exe executable or the Python script (tested on 3.7.3)
+- run minerWatchdog.exe to run it under a watchdog...if miner crashes, minerWatchdog will restart it.
 - Status console via system tray menu, log output and status display with autoscroll
 - Status is available on the hover text on the system tray icon (just move the mouse over it and you'll get HS and BS status)
 - The status panel windows includes th following buttons:
   - Copy to clipboard: will copy the logs in the window to your clipboard
   - Miner Debug: miner forced on and debug output printed.  somewhat broken.
-  - BS Switch mode: nothing..don't push at this point
+  - Exclude: Add current application to excludelist.txt
   - Miner Off: Turn off miner. broken
   - Miner On: Force Miner On
   - Close: hide the window, pause the dashboard updates
@@ -19,13 +20,14 @@ Usage:
 
 Command line switches:
 - "--debug_logs", "Enable DEBUG level logs"
+- "--debug", same as above
 - "--version", show version  number in a toast notification
 
 Config File (remove comments):
 [Miner]
 3D_THRESHOLD = 15  - Threshhold of GPU % usage that determines if a game is active.  coinmining uses cuda/compute and will not trigger this.
 
-APP_PATH = W:\temp\ethMining\ethminer.exe - path to ethminer
+APP_PATH = W:\temp\ethMining\ethminer.exe - path to ethminer or nbminer (see 1.3.4 release notes)
 
 WORKER_NAME = <Name> -  this is the name of the miner computer.  only used if app cannot determine this from COMPUTERNAME env var
 
@@ -53,11 +55,10 @@ CHECK_SLEEP = 4  - how long the gpu check loop sleeps between checks.  shorten t
 
 Limitations:
 - Tested only on Windows 10
-- will not monitor the ethminer task
 
 Requirements:
-- A miner program of your own.  Designed to be used with latest etherminer on windows 10.
-- Python dependencies: on top of the original dependencies there's infi.systray for the Windows System Tray
+- A miner program of your own.  Designed to be used with latest etherminer and nbminer on windows 10.
+- Python dependencies: on top of the original dependencies there's infi.systray for the Windows System Tray.  exe file release has dependencies bundled
 
 Single executable available with ini and ico file in a ZIP file:
 - Built with "build.bat" file
@@ -69,6 +70,14 @@ Todo:
 - Add thread to monitor the ethminer application for activity and presence.  requests module to ethminer web interface?
 
 # Changelog:
+- v1.3.4
+    - Added an exclusion list.  This can be added to manually or it can be added to by pressing the exclude button on the interface while the detected app is active.
+    - Added nbminer.  Just add nbminer exe in the APP_PATH and it will be detected.  (note:  nbminer will not run in watchdog mode, it is turned off)
+    - Added detecting hashrate not zero for ethminer (nbminer has a different method) and will restart the miner if it detects a hashrate of 0.
+    - Added minerWatchdog.exe.  Run this instead to restart the miner.exe if it crashes for some reason.
+    - Made the status window smaller and resizeable (but not scalable).
+- v1.3.3 
+    - added code to filter for "dwm.exe"/desktop window manager.  In VR that can cause large 3d loads, but never goes away
 - v1.3.2 
     - added app name caching.  it will check a list called gamelist.txt in root folder for a game it had previously id'ed and immediately stop the Miner.py
     - added a thread to watch the miner pid and restart it if it dies unexpectedly
