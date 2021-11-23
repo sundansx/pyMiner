@@ -8,7 +8,7 @@ Usage:
 - Just run the miner.exe executable or the Python script (tested on 3.7.3)
 - run minerWatchdog.exe to run it under a watchdog...if miner crashes, minerWatchdog will restart it.
 - Status console via system tray menu, log output and status display with autoscroll
-- Status is available on the hover text on the system tray icon (just move the mouse over it and you'll get HS and BS status)
+- Status is available on the hover text on the system tray icon (just move the mouse over it and you'll get gaming  status).  icon is yellow when making money (mining) and greyed out when gaming (losing money)
 - The status panel windows includes th following buttons:
   - Copy to clipboard: will copy the logs in the window to your clipboard
   - Miner Debug: miner forced on and debug output printed.  somewhat broken.
@@ -70,6 +70,9 @@ Todo:
 - Add thread to monitor the ethminer application for activity and presence.  requests module to ethminer web interface?
 
 # Changelog:
+- v1.3.5
+    - Fixed bug with writing game list and using it shortly after.
+    - Added "open game files" that will open your excludelist.txt and gamelist.txt in your system text editor (notepad on most) for inspection
 - v1.3.4
     - Added an exclusion list.  This can be added to manually or it can be added to by pressing the exclude button on the interface while the detected app is active.
     - Added nbminer.  Just add nbminer exe in the APP_PATH and it will be detected.  (note:  nbminer will not run in watchdog mode, it is turned off)

@@ -30,7 +30,8 @@ class gameCheck:
         self.activeGamePID = None
         self.readGameFile()
         self.readExcludeFile()
-        self.isListDirty = False
+        self.isGmListDirty = False
+        self.isExListDirty = False
 
     def readGameFile(self):
         if (path.exists(self.gameListFile)):
@@ -39,8 +40,23 @@ class gameCheck:
             for c,item in enumerate(self.gameList):
                 self.gameList[c] = item.rstrip() 
             fh.close()
-            self.isListDirty = False
+            self.isGmListDirty = False
     
+    def writeGameFile(self, name):
+        fh = open(self.gameListFile,"a")
+        fh.write(name) 
+        fh.close()
+        self.isGmListDirty = True
+
+    def isOnGameList(self, newItem):
+        if (self.isGmListDirty == True):
+            self.debugMsg = self.debugMsg + f"Rereading Include file"
+            self.readGameFile()
+        for item in self.gameList:
+            if (newItem == item):
+                return True
+        return False
+
     def readExcludeFile(self):
         if (path.exists(self.excludeListFile)):
             fh = open(self.excludeListFile,"r")
@@ -48,26 +64,16 @@ class gameCheck:
             for c,item in enumerate(self.excludeList):
                 self.excludeList[c] = item.rstrip() 
             fh.close()
-            self.isListDirty = False
+            self.isExListDirty = False
      
     def writeExcludeFile(self):
         fh = open(self.excludeListFile,"a")
         fh.write(psutil.Process(int(self.activeGamePID)).name() + '\n') 
         fh.close()
-        self.isListDirty = True
-        
-
-    def isOnGameList(self, newItem):
-        if (self.isListDirty == True):
-            self.debugMsg = self.debugMsg + f"Rereading Include file"
-            self.readGameFile()
-        for item in self.gameList:
-            if (newItem == item):
-                return True
-        return False
+        self.isExListDirty = True
         
     def isOnExcludeList(self, newItem):
-        if (self.isListDirty == True):
+        if (self.isExListDirty == True):
             self.debugMsg = self.debugMsg + f"Rereading Exclude file"
             self.readExcludeFile()
         for item in self.excludeList:
@@ -96,9 +102,10 @@ class gameCheck:
                 else:
                     continue
                 if (self.isOnExcludeList(pName) == True):
-                    self.debugMsg = f"Found excluded game, {pName}"
+                    self.debugMsg = f"Found excluded game, {pName}\n"
+                    continue
                 if ( (self.isOnGameList(pName) == True) and (self.isOnExcludeList(pName) == False) ):
-                    self.debugMsg = f"found cached 3d app: ({pName}:{pid})"
+                    self.debugMsg = f"found cached 3d app: ({pName}:{pid})\n"
                     self.isGaming = True
                     self.activeGamePID = pid
                     return True
@@ -121,17 +128,14 @@ class gameCheck:
                             self.activeTasks[pid] = self.activeTasks[pid] + 1
                         else:
                             self.activeTasks[pid] = 1
-                        self.debugMsg = self.debugMsg + f"found {pid}-\t{pName}: {usage}"
+                        self.debugMsg = self.debugMsg + f"found {pid}-\t{pName}: {usage}\n"
             #check keys to see if a task has exceeded for self.time passes
             if (self.loop == self.times):
                 for x in self.activeTasks:
                     if (self.activeTasks[x] > self.times):
                         self.debugMsg = self.debugMsg + f"adding active 3d app: ({x})\n"
-                        fh = open(self.gameListFile,"a")
-                        gameList = fh.write(psutil.Process(int(x)).name() + '\n') 
-                        fh.close()
+                        self.writeGameFile(psutil.Process(int(x)).name() + '\n')
                         self.isGaming = True
-                        self.isListDirty = True
                         self.activeTasks.clear()
                         self.activeGamePID = x
                         return True

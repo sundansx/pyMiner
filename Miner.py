@@ -58,7 +58,7 @@ class MainObj:
         Init function will initialize the instance with default runtime values
         :rtype: object
         """
-        self.version = "1.3.4"
+        self.version = "1.3.5"
 
         self.threeDThresh = None
         self.minerAppPath = None
@@ -388,7 +388,7 @@ class procCheck(threading.Thread):
                     continue
                 self.islocked = False
                 if (self.maininst.minerProc != None):
-                    logging.debug(f"minter pid = {self.maininst.minerProc.pid}")
+                    logging.debug(f"miner pid = {self.maininst.minerProc.pid}")
                     minerExists = psutil.pid_exists(int(self.maininst.minerProc.pid))
                     if (minerExists == False):
                         logging.info(f"{self.label}: Miner has died, restarting")
@@ -1024,6 +1024,20 @@ def consolewin(systray):
         maininst.logthr.frame.Raise()
         toast_err("ex=" + str(err))
 
+def showFiles(systray):
+    """
+    Function for the system tray menu to show the game exclusion/inclusion files
+    """
+    try:
+        if (os.path.exists("gamelist.txt") == True):
+            os.startfile("gamelist.txt")
+        if (os.path.exists("excludelist.txt") == True):
+            os.startfile("excludelist.txt")
+    except Exception as err:
+        maininst.logthr = runlogthread()
+        maininst.logthr.frame.Show(True)
+        maininst.logthr.frame.Raise()
+        toast_err("ex=" + str(err))
 
 def disable_asserts():
     """
@@ -1038,9 +1052,6 @@ def do_nothing(systray):
     :param systray:
     """
     pass
-
-
-
 
 def on_quit_callback(systray):
     """
@@ -1166,7 +1177,8 @@ def main(_logger):
         _logger = logging.getLogger(__name__)
 
         menu_options = (('Status panel', None, consolewin),
-                        ('Version ' + maininst.version, None, do_nothing)
+                        ('Version ' + maininst.version, None, do_nothing),
+                        ('Open game files', None, showFiles)
                         )
         with SysTrayIcon(maininst.tray_icon, "Initializing...", menu_options, on_quit=on_quit_callback) as systray:
             try:
