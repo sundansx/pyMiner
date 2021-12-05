@@ -53,6 +53,8 @@ GPU_CHECK_PASSES = 3  - this is now many times the app has to find a game/3d app
 
 CHECK_SLEEP = 4  - how long the gpu check loop sleeps between checks.  shorten this to find the game faster, but takes more cpu
 
+QUERY_MINER_SEC = 10 - number of seconds between ethminer queries to help limit cpu usage.  granularity is 5 seconds.
+
 Limitations:
 - Tested only on Windows 10
 
@@ -70,6 +72,8 @@ Todo:
 - Add thread to monitor the ethminer application for activity and presence.  requests module to ethminer web interface?
 
 # Changelog:
+- v1.3.6
+    - Added QUERY_MINER_SEC to set the delay between ethminer queries.  CPU use to high at default because it does not keep the connection open.
 - v1.3.5
     - Fixed bug with writing game list and using it shortly after.
     - Added "open game files" that will open your excludelist.txt and gamelist.txt in your system text editor (notepad on most) for inspection

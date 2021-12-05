@@ -58,7 +58,7 @@ class MainObj:
         Init function will initialize the instance with default runtime values
         :rtype: object
         """
-        self.version = "1.3.5"
+        self.version = "1.3.6"
 
         self.threeDThresh = None
         self.minerAppPath = None
@@ -76,6 +76,7 @@ class MainObj:
         self.minerProc = None
         self.gameActive = False
         self.miner = "ethminer"
+        self.queryDelaySec = 1
 
 
         self.sleep_time_sec = None
@@ -183,6 +184,12 @@ class MainObj:
             self.postMineTask = miner.get('POSTMINE_TASK')
             logging.info(f"will run pre-mine task: \'{self.preMineTask}\'")
             logging.info(f"will run post-mine task: \'{self.postMineTask}\'")
+            self.queryDelaySec = miner.get('QUERY_MINER_SEC', 10)
+            if (self.queryDelaySec == ''):
+                self.queryDelaySec = 10
+            else:
+                self.queryDelaySec = int(self.queryDelaySec)
+            logging.info(f"Will use {self.queryDelaySec} seconds between etheminer queries")
 
         except Exception as err:
             if not self.quit_main:
@@ -222,14 +229,14 @@ class MainObj:
                     logging.info(f"pre mine result: {preMineProc.stdout.decode().rstrip()}")
                 if (self.poolAddr1 != None):
                     if (self.miner == "nbminer"):
-                        poolStr1 = f"-o stratum+tcp://{self.poolAddr3}"
+                        poolStr1 = f"-o stratum+tcp://{self.poolAddr1}"
                     else:
                         poolStr1 = f"-P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr1}"
                 else:
                     poolStr1 = ""
                 if (self.poolAddr2 != None):
                     if (self.miner == "nbminer"):
-                        poolStr2 = f"-o1 stratum+tcp://{self.poolAddr3}"
+                        poolStr2 = f"-o1 stratum+tcp://{self.poolAddr2}"
                     else:
                         poolStr2 = f"-P stratum1+tcp://{self.coinAddr}.{self.workerName}@{self.poolAddr2}"
                 else:
@@ -377,6 +384,7 @@ class procCheck(threading.Thread):
         try:
             self.lock.release()
             passnum = 0
+            delayCount = 0
             while True:
                 time.sleep(5)
                 if self.maininst.get_quit_main():
@@ -396,16 +404,15 @@ class procCheck(threading.Thread):
                         self.maininst.setMinerOn()
                         continue
                     else:
-                        if (self.miningRate() == 0.0):
-                            passnum += 1
+                        if (delayCount > (int(maininst.queryDelaySec/5))):
+                            delayCount = 0
+                            if (self.miningRate() == 0.0):
+                                logging.info(f"{self.label}: Miner is brain dead, restarting")
+                                self.maininst.setMinerOff()
+                                time.sleep(5)
+                                self.maininst.setMinerOn()
                         else:
-                            passnum = 0
-                    if (passnum == 10):   
-                        logging.info(f"{self.label}: Miner is brain dead, restarting")
-                        self.maininst.setMinerOff()
-                        time.sleep(5)
-                        self.maininst.setMinerOn()
-                        passnum = 0
+                            delayCount += 1
 
         except Exception as err:
             logging.error("Error: %s in %s thread: %s" % (self.__class__.__name__, self.label, str(err)))
