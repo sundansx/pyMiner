@@ -74,6 +74,7 @@ Todo:
 # Changelog:
 - v1.3.6
     - Added QUERY_MINER_SEC to set the delay between ethminer queries.  CPU use to high at default because it does not keep the connection open.
+    - Fixed nbminer using 3rd server every time.
 - v1.3.5
     - Fixed bug with writing game list and using it shortly after.
     - Added "open game files" that will open your excludelist.txt and gamelist.txt in your system text editor (notepad on most) for inspection
